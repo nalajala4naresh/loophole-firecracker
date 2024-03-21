@@ -89,6 +89,9 @@ where
         huge_pages: HugePageConfig,
     ) -> Result<Self, MemoryError>;
 
+    /// Flushes memory contents to disk.
+    fn msync(&self) -> std::result::Result<(), MemoryError>;
+
     /// Describes GuestMemoryMmap through a GuestMemoryState struct.
     fn describe(&self) -> GuestMemoryState;
 
@@ -246,7 +249,7 @@ impl GuestMemoryExtension for GuestMemoryMmap {
                     .collect::<Result<Vec<_>, std::io::Error>>()
                     .map_err(MemoryError::FileError)?;
 
-                Self::from_raw_regions_file(regions, track_dirty_pages, false)
+                Self::from_raw_regions_file(regions, track_dirty_pages, true)
             }
             None => {
                 let regions = state
@@ -257,6 +260,20 @@ impl GuestMemoryExtension for GuestMemoryMmap {
                 Self::from_raw_regions(&regions, track_dirty_pages, huge_pages)
             }
         }
+    }
+
+    /// Flushes memory contents to disk.
+    fn msync(&self) -> std::result::Result<(), MemoryError> {
+        Ok(self.iter().for_each(|region| {
+            // TODO: Describe safety aspects of this
+            unsafe {
+                libc::msync(
+                    region.as_ptr() as *mut libc::c_void,
+                    region.size(),
+                    libc::MS_SYNC,
+                );
+            }
+        }))
     }
 
     /// Describes GuestMemoryMmap through a GuestMemoryState struct.
