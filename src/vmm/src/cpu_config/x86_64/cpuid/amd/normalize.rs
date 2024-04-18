@@ -416,8 +416,7 @@ impl super::AmdCpuid {
             .get_mut(&CpuidKey::leaf(0x40000001))
             .ok_or(NormalizeCpuidError::MissingLeaf0x40000001)?;
 
-        // Disable KVM_FEATURE_ASYNC_PF_INT_BIT
-        leaf_40000001.result.eax.write_bit(Self::KVM_FEATURE_ASYNC_PF_INT_BIT, false);
+        // Disable KVM_FEATURE_ASYNC_PF
         set_bit(&mut leaf_40000001.result.eax, 14, false);
         Ok(())
     }
