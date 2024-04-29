@@ -484,7 +484,7 @@ pub enum SnapshotStateFromFileError {
     /// Failed to open snapshot file: {0}
     Open(std::io::Error),
     /// Failed to read snapshot file metadata: {0}
-    Meta(crate::snapshot::Error),
+    Meta(crate::snapshot::SnapshotError),
     /// Failed to load snapshot state from file: {0}
     Load(#[from] crate::snapshot::SnapshotError),
 }
