@@ -305,7 +305,6 @@ run_devctr() {
         --rm \
         --volume /dev:/dev \
         --volume "$FC_ROOT_DIR:$CTR_FC_ROOT_DIR:z" \
-        --network="host" \
         --tmpfs /srv:exec,dev,size=32G \
         -v /boot:/boot \
         --env PYTHONDONTWRITEBYTECODE=1 \
@@ -526,7 +525,7 @@ ensure_ci_artifacts() {
 
     # Fetch all the artifacts so they are local
     say "Fetching CI artifacts from S3"
-    S3_URL=s3://spec.ccfc.min/firecracker-ci/v1.8/$(uname -m)
+    S3_URL=s3://spec.ccfc.min/firecracker-ci/v1.9/$(uname -m)
     ARTIFACTS=$MICROVM_IMAGES_DIR/$(uname -m)
     if [ ! -d "$ARTIFACTS" ]; then
         mkdir -pv $ARTIFACTS

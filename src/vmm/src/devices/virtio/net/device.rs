@@ -7,11 +7,10 @@
 
 #[cfg(not(test))]
 use std::io::Read;
-use std::io::Write;
+use std::mem;
 use std::net::Ipv4Addr;
 use std::sync::atomic::AtomicU32;
 use std::sync::{Arc, Mutex};
-use std::{cmp, mem};
 
 use libc::EAGAIN;
 use log::{error, warn};
@@ -96,11 +95,12 @@ fn init_vnet_hdr(buf: &mut [u8]) {
 }
 
 #[derive(Debug, Default, Clone, Copy)]
+#[repr(C)]
 pub struct ConfigSpace {
     pub guest_mac: MacAddr,
 }
 
-// SAFETY: `ConfigSpace` contains only PODs.
+// SAFETY: `ConfigSpace` contains only PODs in `repr(C)` or `repr(transparent)`, without padding.
 unsafe impl ByteValued for ConfigSpace {}
 
 /// VirtIO network device.
@@ -462,7 +462,7 @@ impl Net {
 
         if let Some(ns) = mmds_ns {
             if ns.is_mmds_frame(headers) {
-                let mut frame = vec![0u8; frame_iovec.len() - vnet_hdr_len()];
+                let mut frame = vec![0u8; frame_iovec.len() as usize - vnet_hdr_len()];
                 // Ok to unwrap here, because we are passing a buffer that has the exact size
                 // of the `IoVecBuffer` minus the VNET headers.
                 frame_iovec
@@ -472,7 +472,7 @@ impl Net {
                 METRICS.mmds.rx_accepted.inc();
 
                 // MMDS frames are not accounted by the rate limiter.
-                Self::rate_limiter_replenish_op(rate_limiter, frame_iovec.len() as u64);
+                Self::rate_limiter_replenish_op(rate_limiter, u64::from(frame_iovec.len()));
 
                 // MMDS consumed the frame.
                 return Ok(true);
@@ -493,7 +493,7 @@ impl Net {
         let _metric = net_metrics.tap_write_agg.record_latency_metrics();
         match Self::write_tap(tap, frame_iovec) {
             Ok(_) => {
-                let len = frame_iovec.len() as u64;
+                let len = u64::from(frame_iovec.len());
                 net_metrics.tx_bytes_count.add(len);
                 net_metrics.tx_packets_count.inc();
                 net_metrics.tx_count.inc();
@@ -609,7 +609,7 @@ impl Net {
             };
 
             // We only handle frames that are up to MAX_BUFFER_SIZE
-            if buffer.len() > MAX_BUFFER_SIZE {
+            if buffer.len() as usize > MAX_BUFFER_SIZE {
                 error!("net: received too big frame from driver");
                 self.metrics.tx_malformed_frames.inc();
                 tx_queue
@@ -618,7 +618,7 @@ impl Net {
                 continue;
             }
 
-            if !Self::rate_limiter_consume_op(&mut self.tx_rate_limiter, buffer.len() as u64) {
+            if !Self::rate_limiter_consume_op(&mut self.tx_rate_limiter, u64::from(buffer.len())) {
                 tx_queue.undo_pop();
                 self.metrics.tx_rate_limiter_throttled.inc();
                 break;
@@ -831,20 +831,13 @@ impl VirtioDevice for Net {
         self.irq_trigger.irq_status.clone()
     }
 
-    fn read_config(&self, offset: u64, mut data: &mut [u8]) {
-        let config_space_bytes = self.config_space.as_slice();
-        let config_len = config_space_bytes.len() as u64;
-        if offset >= config_len {
+    fn read_config(&self, offset: u64, data: &mut [u8]) {
+        if let Some(config_space_bytes) = self.config_space.as_slice().get(u64_to_usize(offset)..) {
+            let len = config_space_bytes.len().min(data.len());
+            data[..len].copy_from_slice(&config_space_bytes[..len]);
+        } else {
             error!("Failed to read config space");
             self.metrics.cfg_fails.inc();
-            return;
-        }
-        if let Some(end) = offset.checked_add(data.len() as u64) {
-            // This write can't fail, offset and end are checked against config_len.
-            data.write_all(
-                &config_space_bytes[u64_to_usize(offset)..u64_to_usize(cmp::min(end, config_len))],
-            )
-            .unwrap();
         }
     }
 
