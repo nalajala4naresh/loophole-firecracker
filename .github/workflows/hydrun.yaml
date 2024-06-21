@@ -47,11 +47,6 @@ jobs:
         run: |
           curl -L -o /tmp/hydrun "https://github.com/pojntfx/hydrun/releases/latest/download/hydrun.linux-$(uname -m)"
           sudo install /tmp/hydrun /usr/local/bin
-      - name: Setup SSH key
-        working-directory: .
-        env:
-          SSH_KEY: ${{ secrets.SSH_KEY }}
-        run: echo "${SSH_KEY}" | base64 -d >'/tmp/ssh-key'
       - name: Build with hydrun
         working-directory: ${{ matrix.target.src }}
         run: hydrun -o ${{ matrix.target.os }} ${{ matrix.target.flags }} "${{ matrix.target.cmd }}"
