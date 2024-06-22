@@ -13,7 +13,7 @@ if [ "$1" = "rust" ]; then
   # Build
   cp "resources/seccomp/$2-unknown-linux-musl.json" "resources/seccomp/$2-alpine-linux-musl.json"
   export RUSTFLAGS='-C target-feature=+crt-static'
-  cargo build --target "$2-alpine-linux-musl" --all-features --release
+  cargo build --package firecracker --package jailer --package seccompiler-bin --package rebase-snap --package cpu-template-helper --target "$2-alpine-linux-musl" --all-features --release
 
   # Stage binaries
   mkdir -p out
