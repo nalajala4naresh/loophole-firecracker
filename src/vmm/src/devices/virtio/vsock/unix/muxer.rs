@@ -162,6 +162,17 @@ impl VsockChannel for VsockMuxer {
             };
 
             if res.is_ok() {
+                match pkt.op() {
+                    uapi::VSOCK_OP_REQUEST => info!("vsock: host sent open_request packet from port {} (dst_port: {})", pkt.src_port(), pkt.dst_port()),
+                    uapi::VSOCK_OP_RESPONSE => info!("vsock: host sent open_response packet from port {} (dst_port: {})", pkt.src_port(), pkt.dst_port()),
+                    uapi::VSOCK_OP_RST => info!("vsock: host sent reset packet from port {} (dst_port: {})", pkt.src_port(), pkt.dst_port()),
+                    uapi::VSOCK_OP_SHUTDOWN => info!("vsock: host sent shutdown packet from port {} (dst_port: {})", pkt.src_port(), pkt.dst_port()),
+                    uapi::VSOCK_OP_RW => info!("vsock: host sent data packet from port {} (dst_port: {})", pkt.src_port(), pkt.dst_port()),
+                    uapi::VSOCK_OP_CREDIT_UPDATE => info!("vsock: host sent credit update packet from port {} (dst_port: {})", pkt.src_port(), pkt.dst_port()),
+                    uapi::VSOCK_OP_CREDIT_REQUEST => info!("vsock: host sent credit request packet from port {} (dst_port: {})", pkt.src_port(), pkt.dst_port()),
+                    _ => info!("vsock: host sent unknown packet from port {} (dst_port: {})", pkt.src_port(), pkt.dst_port()),
+                }
+
                 // Inspect traffic, looking for RST packets, since that means we have to
                 // terminate and remove this connection from the active connection pool.
                 //
@@ -199,6 +210,17 @@ impl VsockChannel for VsockMuxer {
             self.rxq.len(),
             pkt.hdr()
         );
+
+        match pkt.op() {
+            uapi::VSOCK_OP_REQUEST => info!("vsock: guest sent open_request packet to port {} (src_port: {})", pkt.dst_port(), pkt.src_port()),
+            uapi::VSOCK_OP_RESPONSE => info!("vsock: guest sent open_response packet to port {} (src_port: {})", pkt.dst_port(), pkt.src_port()),
+            uapi::VSOCK_OP_RST => info!("vsock: guest sent reset packet to port {} (src_port: {})", pkt.dst_port(), pkt.src_port()),
+            uapi::VSOCK_OP_SHUTDOWN => info!("vsock: guest sent shutdown packet to port {} (src_port: {})", pkt.dst_port(), pkt.src_port()),
+            uapi::VSOCK_OP_RW => info!("vsock: guest sent data packet to port {} (src_port: {})", pkt.dst_port(), pkt.src_port()),
+            uapi::VSOCK_OP_CREDIT_UPDATE => info!("vsock: guest sent credit update packet to port {} (src_port: {})", pkt.dst_port(), pkt.src_port()),
+            uapi::VSOCK_OP_CREDIT_REQUEST => info!("vsock: guest sent credit request packet to port {} (src_port: {})", pkt.dst_port(), pkt.src_port()),
+            _ => info!("vsock: guest sent unknown packet to port {} (src_port: {})",pkt.dst_port(), pkt.src_port()),
+        }
 
         // If this packet has an unsupported type (!=stream), we must send back an RST.
         //
@@ -496,16 +518,16 @@ impl VsockMuxer {
                 evset: conn.get_polled_evset(),
             },
         )
-        .map(|_| {
-            if conn.has_pending_rx() {
-                // We can safely ignore any error in adding a connection RX indication. Worst
-                // case scenario, the RX queue will get desynchronized, but we'll handle that
-                // the next time we need to yield an RX packet.
-                self.rxq.push(MuxerRx::ConnRx(key));
-            }
-            self.conn_map.insert(key, conn);
-            METRICS.conns_added.inc();
-        })
+            .map(|_| {
+                if conn.has_pending_rx() {
+                    // We can safely ignore any error in adding a connection RX indication. Worst
+                    // case scenario, the RX queue will get desynchronized, but we'll handle that
+                    // the next time we need to yield an RX packet.
+                    self.rxq.push(MuxerRx::ConnRx(key));
+                }
+                self.conn_map.insert(key, conn);
+                METRICS.conns_added.inc();
+            })
     }
 
     /// Remove a connection from the active connection poll.
@@ -728,14 +750,14 @@ impl VsockMuxer {
                         evset: new_evset,
                     },
                 )
-                .unwrap_or_else(|err| {
-                    self.kill_connection(key);
-                    error!(
+                    .unwrap_or_else(|err| {
+                        self.kill_connection(key);
+                        error!(
                         "vsock: error updating epoll listener for (lp={}, pp={}): {:?}",
                         key.local_port, key.peer_port, err
                     );
-                    METRICS.muxer_event_fails.inc();
-                });
+                        METRICS.muxer_event_fails.inc();
+                    });
             }
         }
     }
@@ -837,13 +859,13 @@ mod tests {
                     .pop(&vsock_test_ctx.mem)
                     .unwrap(),
             )
-            .unwrap();
+                .unwrap();
             let tx_pkt = VsockPacket::from_tx_virtq_head(
                 handler_ctx.device.queues[TXQ_INDEX]
                     .pop(&vsock_test_ctx.mem)
                     .unwrap(),
             )
-            .unwrap();
+                .unwrap();
 
             let muxer = VsockMuxer::new(PEER_CID, get_file(name)).unwrap();
             Self {
