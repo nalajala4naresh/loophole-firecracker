@@ -24,7 +24,8 @@ DEFAULT_INSTANCES = [
 
 DEFAULT_PLATFORMS = [
     ("al2", "linux_5.10"),
-    ("al2023", "linux_6.1"),
+    # TODO: unpin 6.1 AMI once the bug is fixed
+    ("al2023", "linux_6.1-pinned"),
 ]
 
 
@@ -314,8 +315,9 @@ class BKPipeline:
 
         https://buildkite.com/docs/pipelines/group-step
         """
+        decorate = kwargs.pop("decorate", True)
         combined = overlay_dict(self.per_instance, kwargs)
-        return self.add_step(group(*args, **combined))
+        return self.add_step(group(*args, **combined), decorate=decorate)
 
     def build_group_per_arch(self, *args, **kwargs):
         """
