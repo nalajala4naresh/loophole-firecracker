@@ -10,6 +10,23 @@ and this project adheres to
 
 ### Added
 
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+- [#4796](https://github.com/firecracker-microvm/firecracker/pull/4796): Fixed
+  Vsock not notifying guest about `TRANSPORT_RESET_EVENT` event after snapshot
+  restore. This resulted in guest waiting indefinitely on a connection which was
+  reset during snapshot creation.
+
+## \[1.9.0\]
+
+### Added
+
 - [#4687](https://github.com/firecracker-microvm/firecracker/pull/4687): Added
   VMGenID support for microVMs running on ARM hosts with 6.1 guest kernels.
   Support for VMGenID via DeviceTree bindings exists only on mainline 6.10 Linux
@@ -20,6 +37,9 @@ and this project adheres to
   [#4741](https://github.com/firecracker-microvm/firecracker/pull/4741),
   [#4746](https://github.com/firecracker-microvm/firecracker/pull/4746): Added
   official support for 6.1 microVM guest kernels.
+- [#4743](https://github.com/firecracker-microvm/firecracker/pull/4743): Added
+  support for `-h` help flag to the Jailer. The Jailer will now print the help
+  message with either `--help` or `-h`.
 
 ### Changed
 
@@ -37,6 +57,15 @@ and this project adheres to
   supported.
 
 ### Fixed
+
+- [4680](https://github.com/firecracker-microvm/firecracker/pull/4680): Fixed an
+  issue
+  ([#4659](https://github.com/firecracker-microvm/firecracker/issues/4659))
+  where the virtio-net device implementation would always assume the guest
+  accepts all VirtIO features the device offers. This is always true with the
+  Linux guest kernels we are testing but other kernels, like FreeBSD make
+  different assumptions. This PR fixes the emulation code to set the TAP
+  features based on the features accepted by the guest.
 
 ## \[1.8.0\]
 
@@ -788,7 +817,9 @@ and this project adheres to
   `--show-level` and `--show-log-origin` that can be used for configuring the
   Logger when starting the process. When using this method for configuration,
   only `--log-path` is mandatory.
-- Added a [guide](docs/devctr-image.md) for updating the dev container image.
+- Added a
+  [guide](https://github.com/firecracker-microvm/firecracker/blob/v0.22.0/docs/devctr-image.md)
+  for updating the dev container image.
 - Added a new API call, `PUT /mmds/config`, for configuring the `MMDS` with a
   custom valid link-local IPv4 address.
 - Added experimental JSON response format support for MMDS guest applications

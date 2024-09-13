@@ -227,8 +227,8 @@ fn snapshot_memory_to_file(
 
             let mut file = OpenOptions::new()
                 .write(true)
-                .truncate(false) // No need to truncate; see file_existed check below
                 .create(true)
+                .truncate(false)
                 .open(mem_file_path)
                 .map_err(|err| MemoryBackingFile("open", err))?;
 
@@ -266,18 +266,50 @@ fn snapshot_memory_to_file(
                         .dump_dirty(&mut file, &dirty_bitmap)
                         .map_err(Memory)
                 }
-                SnapshotType::Full => vmm.guest_memory().dump(&mut file).map_err(Memory),
+                SnapshotType::Full => {
+                    let dump_res = vmm.guest_memory().dump(&mut file).map_err(Memory);
+                    if dump_res.is_ok() {
+                        vmm.reset_dirty_bitmap();
+                        vmm.guest_memory().reset_dirty();
+                    }
+
+                    dump_res
+                }
                 _ => Ok(()),
             }?;
+            mark_queues_as_dirty(vmm);
+
             file.flush()
                 .map_err(|err| MemoryBackingFile("flush", err))?;
             file.sync_all()
                 .map_err(|err| MemoryBackingFile("sync_all", err))
         }
         SnapshotType::Msync | SnapshotType::MsyncAndState => {
+            mark_queues_as_dirty(vmm);
+
             vmm.guest_memory().msync().map_err(MemoryMsync)
         }
     }
+}
+
+/// Marks queues as dirty again for all activated devices.
+fn mark_queues_as_dirty(vmm: &Vmm) {
+    // We need to mark queues as dirty again for all activated devices. The reason we
+    // do it here is because we don't mark pages as dirty during runtime
+    // for queue objects.
+    // SAFETY:
+    // This should never fail as we only mark pages only if device has already been activated,
+    // and the address validation was already performed on device activation.
+    vmm.mmio_device_manager
+        .for_each_virtio_device(|_, _, _, dev| {
+            let d = dev.lock().unwrap();
+            if d.is_activated() {
+                d.mark_queue_memory_dirty(vmm.guest_memory())
+            } else {
+                Ok(())
+            }
+        })
+        .unwrap();
 }
 
 /// Validates that snapshot CPU vendor matches the host CPU vendor.
