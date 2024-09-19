@@ -85,9 +85,9 @@ def skip_test_based_on_artifacts(snapshot_artifacts_dir):
     results in error since restore doesn't find the file to load.
     e.g. let's suppose snapshot is created on Skylake and restored
     on Cascade Lake. So, the created artifacts could just be:
-    snapshot_artifacts/wrmsr/vmlinux-4.14/T2S
+    snapshot_artifacts/wrmsr/vmlinux-5.10/T2S
     but the restore test would fail because the files in
-    snapshot_artifacts/wrmsr/vmlinux-4.14/T2CL won't be available.
+    snapshot_artifacts/wrmsr/vmlinux-5.10/T2CL won't be available.
     To avoid this we make an assumption that if template directory
     does not exist then snapshot was not created for that template
     and we skip the test.
@@ -672,7 +672,6 @@ def test_cpu_template(uvm_plain_any, cpu_template, microvm_factory):
     restored_vm = microvm_factory.build()
     restored_vm.spawn()
     restored_vm.restore_from_snapshot(snapshot, resume=True)
-    restored_vm.wait_for_up()
     check_masked_features(restored_vm, cpu_template)
     check_enabled_features(restored_vm, cpu_template)
 
